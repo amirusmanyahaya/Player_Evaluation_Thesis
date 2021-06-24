@@ -1,11 +1,12 @@
-import mysql.connector as cn
 import os
 
+from sqlalchemy import create_engine
+from sqlalchemy import text
 
-def create_connection(user: str, password: str, host: str, database: str) -> cn.connect:
+
+def create_connection(user: str, password: str, host: str, database: str):
     """
-    Creates a `database connection`. if the connection fails,
-    an error string is displayed
+    Creates a `database connection`.
     Args:
         user: The username used to access the database
         password: The password used to access the database
@@ -15,29 +16,17 @@ def create_connection(user: str, password: str, host: str, database: str) -> cn.
     Returns: connection
 
     """
-    try:
-        connection = cn.connect(host=host,
-                         database=database,
-                         user=user,
-                         password=password)
-        if connection.is_connected():
-            info = connection.get_server_info()
-            print(f"Connected to MySQL server version {info}")
-            cursor = connection.cursor()
-            cursor.execute("select database();")
-            record = cursor.fetchone()
-            print(f"your are connected to databse: {record}")
-            return connection
-    except cn.Error as err:
-        print(f"Error while connecting to the database: {err}")
+    engine = create_engine(f"mysql+mysqlconnector://{user}:{password}@{host}/{database}")
+    return engine
 
 
 if __name__ == "__main__":
-    connection = create_connection(user=os.environ["db_user"],
-                                   password=os.environ["db_pass"],
-                                   host=os.environ["db_host"],
-                                   database=os.environ["db_name"])
-    cursor = connection.cursor()
-    cursor.execute("select AwayPlayer1, HomePlayer1 from play_by_play_events")
-    record = cursor.fetchone()
-    print(record)
+    engine = create_connection(user=os.environ["db_user"],
+                               password=os.environ["db_pass"],
+                               host=os.environ["db_host"],
+                               database=os.environ["db_name"])
+    with engine.begin() as connection:
+        query = text("describe play_by_play_events")
+        result = connection.execute(query).fetchall()
+        attributes = [row[0] for row in result]
+        print(attributes)
