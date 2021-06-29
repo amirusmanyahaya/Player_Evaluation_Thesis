@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Sequence, Type
 from sqlalchemy import Column
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
@@ -43,6 +43,16 @@ class Team(Base):
     League = Column(Text)
 
 
+class NewPlayByPlay(Base):
+    __tablename__ = "new_play_by_play"
+    GameId = Column(Integer, ForeignKey(Game.GameId), primary_key=True)
+    Period = Column(Integer)
+    Sequence = Column(Integer)
+    EventNumber = Column(Integer)
+    EventTime = Column(Time)
+    Event = Column(Text)
+
+
 class PlayByPlayEvents(Base):
     __tablename__ = "play_by_play_events"
     GameId = Column(Integer, ForeignKey(Game.GameId), primary_key=True)
@@ -74,9 +84,9 @@ class PlayByPlayEvents(Base):
     HomePlayer9 = Column(Integer, ForeignKey(Player.PlayerId))
 
 
-class EventPeriodStart:
+class EventPeriodStart(Base):
     __tablename__ = "event_period_start"
-    PeriodStartId = Column(Integer)
+    PeriodStartId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -87,9 +97,9 @@ class EventPeriodStart:
     TimeZone = Column(Text)
 
 
-class EventFaceoff:
+class EventFaceoff(Base):
     __tablename__ = "event_faceoff"
-    FaceoffId = Column(Integer)
+    FaceoffId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -106,9 +116,9 @@ class EventFaceoff:
     WinningTeamDisposition = Column(Text)
 
 
-class EventMissedShot:
+class EventMissedShot(Base):
     __tablename__ = "event_missed_shot"
-    MissId = Column(Integer)
+    MissId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -126,9 +136,9 @@ class EventMissedShot:
     Distance = Column(Float)
 
 
-class EventShot:
+class EventShot(Base):
     __tablename__ = "event_shot"
-    ShotId = Column(Integer)
+    ShotId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -145,9 +155,9 @@ class EventShot:
     Distance = Column(Float)
 
 
-class EventHit:
+class EventHit(Base):
     __tablename__ = "event_hit"
-    HitId = Column(Integer)
+    HitId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -164,7 +174,7 @@ class EventHit:
     Zone = Column(Text)
 
 
-class EventBlockedShot:
+class EventBlockedShot(Base):
     __tablename__ = "event_blocked_shot"
     BlockId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId), primary_key=True)
@@ -186,7 +196,7 @@ class EventBlockedShot:
     Zone = Column(Text)
 
 
-class EventStoppage:
+class EventStoppage(Base):
     __tablename__ = "event_stoppage"
     StoppageId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId), primary_key=True)
@@ -198,9 +208,9 @@ class EventStoppage:
     Reason = Column(Text)
 
 
-class EventGiveaway:
+class EventGiveaway(Base):
     __tablename__ = "event_giveaway"
-    GiveawayId = Column(Integer)
+    GiveawayId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -215,9 +225,9 @@ class EventGiveaway:
     Zone = Column(Text)
 
 
-class EventPenalty:
+class EventPenalty(Base):
     __tablename__ = "event_penalty"
-    PenaltyId = Column(Integer)
+    PenaltyId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -236,7 +246,7 @@ class EventPenalty:
     PenalizedTeamDisposition = Column(Text)
 
 
-class EventGoal:
+class EventGoal(Base):
     __tablename__ = "event_goal"
     GoalId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId), primary_key=True)
@@ -262,9 +272,9 @@ class EventGoal:
     ShotDistance = Column(Float)
 
 
-class EventTakeaway:
+class EventTakeaway(Base):
     __tablename__ = "event_takeaway"
-    TakeawayId = Column(Integer)
+    TakeawayId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -279,9 +289,9 @@ class EventTakeaway:
     Zone = Column(Text)
 
 
-class EventPeriodEnd:
+class EventPeriodEnd(Base):
     __tablename__ = "event_period_end"
-    PeriodEndId = Column(Integer)
+    PeriodEndId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -292,9 +302,9 @@ class EventPeriodEnd:
     TimeZone = Column(Text)
 
 
-class EventGameEnd:
+class EventGameEnd(Base):
     __tablename__ = "event_game_end"
-    GameEndId = Column(Integer)
+    GameEndId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -305,9 +315,9 @@ class EventGameEnd:
     TimeZone = Column(Text)
 
 
-class EventShootoutCompleted:
+class EventShootoutCompleted(Base):
     __tablename__ = "event_shootout_completed"
-    ShootoutCompletedId = Column(Integer)
+    ShootoutCompletedId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -318,9 +328,9 @@ class EventShootoutCompleted:
     TimeZone = Column(Text)
 
 
-class EventEarlyIntermissionStart:
+class EventEarlyIntermissionStart(Base):
     __tablename__ = "event_early_intermission_start"
-    EarlyIntermissionStartId = Column(Integer)
+    EarlyIntermissionStartId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -331,9 +341,9 @@ class EventEarlyIntermissionStart:
     TimeZone = Column(Text)
 
 
-class EventEarlyIntermissionEnd:
+class EventEarlyIntermissionEnd(Base):
     __tablename__ = "event_early_intermission_end"
-    EarlyIntermissionEndId = Column(Integer)
+    EarlyIntermissionEndId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -344,9 +354,9 @@ class EventEarlyIntermissionEnd:
     TimeZone = Column(Text)
 
 
-class EventGameOff:
+class EventGameOff(Base):
     __tablename__ = "event_game_off"
-    GameOffId = Column(Integer)
+    GameOffId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
@@ -355,8 +365,9 @@ class EventGameOff:
     EventTime = Column(Time)
 
 
-class EventGoaliePulled:
-    GoaliePulledId = Column(Integer)
+class EventGoaliePulled(Base):
+    __tablename__ = "event_goalie_pulled"
+    GoaliePulledId = Column(Integer, primary_key=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
