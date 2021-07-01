@@ -14,26 +14,50 @@ def extract_season(season, session, season_type="All"):
     result = None
     if season_type == "Regular Season":
         result = (
-            session.query(PlayByPlayEvents)
-            .join(Game, PlayByPlayEvents.GameId == Game.GameId)
+            session.query(
+                PlayByPlayEvents.GameId,
+                PlayByPlayEvents.PeriodNumber,
+                PlayByPlayEvents.ActionSequence,
+                PlayByPlayEvents.ExternalEventId,
+                PlayByPlayEvents.EventNumber,
+                PlayByPlayEvents.EventTime,
+                PlayByPlayEvents.EventType,
+            )
+            .join(Game)
             .filter(Game.Season == season, Game.SeasonType == "Regular Season")
             .all()
         )
     elif season_type == "Playoffs":
         result = (
-            session.query(PlayByPlayEvents)
-            .join(Game, PlayByPlayEvents.GameId == Game.GameId)
+            session.query(
+                PlayByPlayEvents.GameId,
+                PlayByPlayEvents.PeriodNumber,
+                PlayByPlayEvents.ActionSequence,
+                PlayByPlayEvents.ExternalEventId,
+                PlayByPlayEvents.EventNumber,
+                PlayByPlayEvents.EventTime,
+                PlayByPlayEvents.EventType,
+            )
+            .join(Game)
             .filter(Game.Season == season, Game.SeasonType == "Playoffs")
             .all()
         )
     else:
         result = (
-            session.query(PlayByPlayEvents)
-            .join(Game, PlayByPlayEvents.GameId == Game.GameId)
+            session.query(
+                PlayByPlayEvents.GameId,
+                PlayByPlayEvents.PeriodNumber,
+                PlayByPlayEvents.ActionSequence,
+                PlayByPlayEvents.ExternalEventId,
+                PlayByPlayEvents.EventNumber,
+                PlayByPlayEvents.EventTime,
+                PlayByPlayEvents.EventType,
+            )
+            .join(Game)
             .filter(Game.Season == season)
             .all()
         )
-    session.commit()
+    # session.commit()
     return result
 
 
@@ -42,9 +66,14 @@ def perform_join(obj1, id1, id2, session):
     return orm
 
 
-def create_tables(engine, obj):
+def create_tables(engine, obj, session):
+    session.commit()
+    Base.metadata.tables["new_play_by_play"].drop(bind=engine, checkfirst=True)
+    print(f"dropped table {obj.__tablename__}")
+    session.commit()
     Base.metadata.tables["new_play_by_play"].create(bind=engine, checkfirst=True)
     print(f"created table {obj.__tablename__}")
+    session.commit()
 
 
 def populate_play_by_play(orms, session):
@@ -63,27 +92,27 @@ def populate_play_by_play(orms, session):
             result = perform_join(
                 EventFaceoff, EventFaceoff.FaceoffId, orm.ExternalEventId, session
             )
-            event = f"faceoff({'Home' if result.FaceoffWinningTeamId == result.HomeTeamId else 'Away' },{result.Zone})"
+            event = f"faceoff({'Home' if result[0].FaceoffWinningTeamId == result[0].HomeTeamId else 'Away' },{result[0].Zone})"
         elif orm.EventType == "MISSED SHOT":
             result = perform_join(
                 EventMissedShot, EventMissedShot.MissId, orm.ExternalEventId, session
             )
-            event = f"missed_shot({'Home' if result.MissTeamId == result.HomeTeamId else 'Away' },{result.Zone})"
+            event = f"missed_shot({'Home' if result[0].MissTeamId == result[0].HomeTeamId else 'Away' },{result[0].Zone})"
         elif orm.EventType == "SHOT":
             result = perform_join(
                 EventShot, EventShot.ShotId, orm.ExternalEventId, session
             )
-            event = f"shot({'Home' if result.ShotByTeamId == result.HomeTeamId else 'Away' },{result.Zone})"
+            event = f"shot({'Home' if result[0].ShotbyTeamId == result[0].HomeTeamId else 'Away' },{result[0].Zone})"
         elif orm.EventType == "HIT":
             result = perform_join(
                 EventHit, EventHit.HitId, orm.ExternalEventId, session
             )
-            event = f"hit({'Home' if result.HittingTeamId == result.HomeTeamId else 'Away' },{result.Zone})"
+            event = f"hit({'Home' if result[0].HittingTeamId == result[0].HomeTeamId else 'Away' },{result[0].Zone})"
         elif orm.EventType == "BLOCKED SHOT":
             result = perform_join(
                 EventBlockedShot, EventBlockedShot.BlockId, orm.ExternalEventId, session
             )
-            event = f"blocked_shot({'Home' if result.BlockTeamId == result.HomeTeamId else 'Away' },{result.Zone})"
+            event = f"blocked_shot({'Home' if result[0].BlockTeamId == result[0].HomeTeamId else 'Away' },{result[0].Zone})"
         elif orm.EventType == "STOPPAGE":
             result = perform_join(
                 EventStoppage, EventStoppage.StoppageId, orm.ExternalEventId, session
@@ -93,22 +122,22 @@ def populate_play_by_play(orms, session):
             result = perform_join(
                 EventGiveaway, EventGiveaway.GiveawayId, orm.ExternalEventId, session
             )
-            event = f"giveaway({'Home' if result.GiveawayTeamId == result.HomeTeamId else 'Away' },{result.Zone})"
+            event = f"giveaway({'Home' if result[0].GiveawayTeamId == result[0].HomeTeamId else 'Away' },{result[0].Zone})"
         elif orm.EventType == "PENALTY":
             result = perform_join(
                 EventPenalty, EventPenalty.PenaltyId, orm.ExternalEventId, session
             )
-            event = f"penalty({'Home' if result.TeamPenaltyId == result.HomeTeamId else 'Away' },{result.Zone})"
+            event = f"penalty({'Home' if result[0].TeamPenaltyId == result[0].HomeTeamId else 'Away' },{result[0].Zone})"
         elif orm.EventType == "GOAL":
             result = perform_join(
                 EventGoal, EventGoal.GoalId, orm.ExternalEventId, session
             )
-            event = f"goal({'Home' if result.ScoringTeamId == result.HomeTeamId else 'Away' },{result.Zone})"
+            event = f"goal({'Home' if result[0].ScoringTeamId == result[0].HomeTeamId else 'Away' },{result[0].Zone})"
         elif orm.EventType == "TAKEAWAY":
             result = perform_join(
                 EventTakeaway, EventTakeaway.TakeawayId, orm.ExternalEventId, session
             )
-            event = f"takeaway({'Home' if result.TakeawayTeamId == result.HomeTeamId else 'Away' },{result.Zone})"
+            event = f"takeaway({'Home' if result[0].TakeawayTeamId == result[0].HomeTeamId else 'Away' },{result[0].Zone})"
         elif orm.EventType == "PERIOD END":
             result = perform_join(
                 EventPeriodEnd, EventPeriodEnd.PeriodEndId, orm.ExternalEventId, session
@@ -179,9 +208,8 @@ if __name__ == "__main__":
         host=os.environ["db_host"],
         database=os.environ["db_name"],
     )
-    season = "2010-2011"
+    season = "2012-2013"
     session = sessionmaker(bind=engine)()
     orms = extract_season(season=season, session=session, season_type="Regular Season")
-    create_tables(engine, NewPlayByPlay)
+    # create_tables(engine, NewPlayByPlay, session)
     populate_play_by_play(orms, session)
-    session.close()

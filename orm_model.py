@@ -45,7 +45,8 @@ class Team(Base):
 
 class NewPlayByPlay(Base):
     __tablename__ = "new_play_by_play"
-    GameId = Column(Integer, ForeignKey(Game.GameId), primary_key=True)
+    PlayByPlayId = Column(Integer,primary_key=True, autoincrement=True)
+    GameId = Column(Integer, ForeignKey(Game.GameId))
     Period = Column(Integer)
     Sequence = Column(Integer)
     EventNumber = Column(Integer)
@@ -185,7 +186,7 @@ class EventBlockedShot(Base):
     EventTime = Column(Time)
     BlockTeam = Column(Text)
     BlockTeamId = Column(Integer, ForeignKey(Team.TeamId))
-    Dispositon = Column(Text)
+    Disposition = Column(Text)
     PlayerNumber = Column(Integer)
     PlayerId = Column(Integer, ForeignKey(Player.PlayerId))
     BlockedTeam = Column(Text)
@@ -266,7 +267,7 @@ class EventGoal(Base):
     NumAssistsFirstPlayer = Column(Integer)
     SecondAssistNumber = Column(Integer)
     SecondAssistId = Column(Integer, ForeignKey(Player.PlayerId))
-    NumberAssistsSecondPlayer = Column(Integer)
+    NumAssistsSecondPlayer = Column(Integer)
     ShotType = Column(Text)
     Zone = Column(Text)
     ShotDistance = Column(Float)
