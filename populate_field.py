@@ -1,4 +1,3 @@
-from re import S
 import database
 import os
 from orm_model import *
@@ -6,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import MetaData
 from tqdm import tqdm
+from node import Node
 
 
 # returns the
@@ -201,6 +201,38 @@ def populate_play_by_play(orms, session):
             session.commit()
 
 
+def build_tree(session, results, time_array):
+    # initialize a root node
+    root = Node()
+    root.set_type("Root Node")
+    root.set_node_id(0)
+    root.set_goal_away(None)
+    root.set_goal_home(None)
+    root.set_goal_diff(None)
+    root.set_no_away_players(None)
+    root.set_no_home_players(None)
+    root.set_man_diff(None)
+    root.set_zone(None)
+    root.set_period(None)
+    root.set_time_elapsed(None)
+    root.set_count(1)
+
+    current_node = root
+
+    # for every row in the play_by_play_event
+    #     get the type of event
+    #     if event is a start marker
+    #         create a context state
+    #     else
+    #         if the event is a normal event
+    #             add the event to it's parent node
+    #         if the event is an end event
+    #             if the event is a goal
+    #                 add a shot event before the goal to the parent node
+
+    #             add the end event to the current node
+
+
 if __name__ == "__main__":
     engine = database.create_connection(
         user=os.environ["db_user"],
@@ -212,4 +244,6 @@ if __name__ == "__main__":
     session = sessionmaker(bind=engine)()
     orms = extract_season(season=season, session=session, season_type="Regular Season")
     # create_tables(engine, NewPlayByPlay, session)
-    populate_play_by_play(orms, session)
+    # populate_play_by_play(orms, session)
+    time_array = []
+    build_tree(session, orms, time_array)
