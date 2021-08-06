@@ -1,4 +1,5 @@
 class Node:
+    number_of_node = 0
     def __init__(self) -> None:
         self.type = None
         self.node_id = 0

@@ -8,53 +8,64 @@ from tqdm import tqdm
 from node import Node
 
 
-# returns the
-def extract_season(season, session, season_type="All"):
+# returns a list of play by play objects for a game
+def extract_game(season, session, game_id, season_type="All"):
     # extracting the specific season
     result = None
     if season_type == "Regular Season":
         result = (
             session.query(
-                PlayByPlayEvents.GameId,
-                PlayByPlayEvents.PeriodNumber,
-                PlayByPlayEvents.ActionSequence,
-                PlayByPlayEvents.ExternalEventId,
-                PlayByPlayEvents.EventNumber,
-                PlayByPlayEvents.EventTime,
-                PlayByPlayEvents.EventType,
+                PlayByPlayEvents
+                # PlayByPlayEvents.GameId,
+                # PlayByPlayEvents.PeriodNumber,
+                # PlayByPlayEvents.ActionSequence,
+                # PlayByPlayEvents.ExternalEventId,
+                # PlayByPlayEvents.EventNumber,
+                # PlayByPlayEvents.EventTime,
+                # PlayByPlayEvents.EventType,
             )
             .join(Game)
-            .filter(Game.Season == season, Game.SeasonType == "Regular Season")
+            .filter(
+                Game.Season == season,
+                Game.SeasonType == "Regular Season",
+                Game.GameId == game_id,
+            )
             .all()
         )
     elif season_type == "Playoffs":
         result = (
             session.query(
-                PlayByPlayEvents.GameId,
-                PlayByPlayEvents.PeriodNumber,
-                PlayByPlayEvents.ActionSequence,
-                PlayByPlayEvents.ExternalEventId,
-                PlayByPlayEvents.EventNumber,
-                PlayByPlayEvents.EventTime,
-                PlayByPlayEvents.EventType,
+                PlayByPlayEvents
+                # PlayByPlayEvents.GameId,
+                # PlayByPlayEvents.PeriodNumber,
+                # PlayByPlayEvents.ActionSequence,
+                # PlayByPlayEvents.ExternalEventId,
+                # PlayByPlayEvents.EventNumber,
+                # PlayByPlayEvents.EventTime,
+                # PlayByPlayEvents.EventType,
             )
             .join(Game)
-            .filter(Game.Season == season, Game.SeasonType == "Playoffs")
+            .filter(
+                Game.Season == season,
+                Game.SeasonType == "Playoffs",
+                Game.GameId == game_id,
+            )
             .all()
         )
     else:
         result = (
             session.query(
-                PlayByPlayEvents.GameId,
-                PlayByPlayEvents.PeriodNumber,
-                PlayByPlayEvents.ActionSequence,
-                PlayByPlayEvents.ExternalEventId,
-                PlayByPlayEvents.EventNumber,
-                PlayByPlayEvents.EventTime,
-                PlayByPlayEvents.EventType,
+                PlayByPlayEvents
+                # PlayByPlayEvents.GameId,
+                # PlayByPlayEvents.PeriodNumber,
+                # PlayByPlayEvents.ActionSequence,
+                # PlayByPlayEvents.ExternalEventId,
+                # PlayByPlayEvents.EventNumber,
+                # PlayByPlayEvents.EventTime,
+                # PlayByPlayEvents.EventType,
             )
             .join(Game)
-            .filter(Game.Season == season)
+            .filter(Game.Season == season, Game.GameId == game_id)
             .all()
         )
     # session.commit()
@@ -201,7 +212,31 @@ def populate_play_by_play(orms, session):
             session.commit()
 
 
-def build_tree(session, results, time_array):
+def get_game_ids(session, season, season_type):
+    results = (
+        session.query(Game.GameId)
+        .filter(Game.Season == season, Game.SeasonType == season_type)
+        .all()
+    )
+    return results
+
+
+def is_leaf_node(event):
+    end_markers = ["GAME END","STOPPAGE","PENALTY","GOAL","PERIOD END"]
+    if event in end_markers:
+        return True
+    else:
+        return False
+
+def is_home_team(event):
+    return event[0].ScoringTeamId == event[0].HomeTeamId
+
+
+def generate_node(orm, session):
+    node = Node()
+
+
+def build_tree(session, season, season_type, time_array):
     # initialize a root node
     root = Node()
     root.set_type("Root Node")
@@ -217,20 +252,64 @@ def build_tree(session, results, time_array):
     root.set_time_elapsed(None)
     root.set_count(1)
 
-    current_node = root
+    # get game_ids
+    games = get_game_ids(session, season, season_type)
 
-    # for every row in the play_by_play_event
-    #     get the type of event
-    #     if event is a start marker
-    #         create a context state
-    #     else
-    #         if the event is a normal event
-    #             add the event to it's parent node
-    #         if the event is an end event
-    #             if the event is a goal
-    #                 add a shot event before the goal to the parent node
 
-    #             add the end event to the current node
+    for game_id in games:
+        current_node = root
+
+        # for every event in the game
+        # expanding my current_node
+        for event in extract_game(season,session,game_id,season_type):
+            if is_leaf_node(event.EventType):
+                new_node = Node()
+                key = None
+                if event.EventType == "GOAL":
+                    goal_event = session.query(EventGoal).filter(EventGoal.GoalId == event.ExternalEventId).all()
+
+                    # adding shot event before the goal
+                    new_node.set_type("Event Node")
+                    new_node.set_goal_home(current_node.get_goal_home())
+                    new_node.set_goal_away(current_node.get_goal_away())
+                    new_node.set_goal_diff(current_node.get_goal_diff())
+                    new_node.set_no_home_players(current_node.get_no_home_players())
+                    new_node.set_no_away_players(current_node.get_no_away_players())
+                    new_node.set_man_diff(current_node.get_man_diff())
+                    new_node.set_period(current_node.get_period())
+                    # set the zone and the team that scores the goal
+                    new_node.set_zone(goal_event.get_zone())
+                    new_node.set_time_elapsed(goal_event.EventTime)
+                    
+                    # if the home team scores
+                    if is_home_team(goal_event):
+                        key = f"shot(Home,{goal_event.Zone}):"
+                    else:
+                        key = f"shot(away,{goal_event.zone}):"
+                    # key of the form shot(home,offensive) or shot(away,offensive)
+                    key += str(goal_event.EventTime.minute)
+
+                    child_node = current_node.get_childeren().get(key)
+                    # child node is not a child of the current node
+                    if(child_node == None):
+                        new_node.increment_count()
+                        new_node.parent
+                        current_node.add_child(key,new_node)
+                    else:
+                        child_node.increment_count()
+
+
+
+
+
+
+
+                    # create a shot event as a child of the current_node
+                    # before adding a goal event
+
+                    
+
+                root.increment_count()
 
 
 if __name__ == "__main__":
@@ -240,10 +319,12 @@ if __name__ == "__main__":
         host=os.environ["db_host"],
         database=os.environ["db_name"],
     )
-    season = "2012-2013"
+    season = "2013-2014"
     session = sessionmaker(bind=engine)()
-    orms = extract_season(season=season, session=session, season_type="Regular Season")
-    # create_tables(engine, NewPlayByPlay, session)
-    # populate_play_by_play(orms, session)
-    time_array = []
-    build_tree(session, orms, time_array)
+    season_type = "Regular Season"
+    # orms = extract_season(season=season, session=session, season_type=season_type)
+    # build_tree(session, season, season_type, time_array=[])
+
+    game_ids = get_game_ids(session, season, season_type=season_type)
+    results = extract_game(season,session,game_ids[0][0],season_type)
+    print(results[3].EventType)

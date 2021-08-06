@@ -45,7 +45,7 @@ class Team(Base):
 
 class NewPlayByPlay(Base):
     __tablename__ = "new_play_by_play"
-    PlayByPlayId = Column(Integer,primary_key=True, autoincrement=True)
+    PlayByPlayId = Column(Integer, primary_key=True, autoincrement=True)
     GameId = Column(Integer, ForeignKey(Game.GameId))
     Period = Column(Integer)
     Sequence = Column(Integer)
@@ -56,11 +56,11 @@ class NewPlayByPlay(Base):
 
 class PlayByPlayEvents(Base):
     __tablename__ = "play_by_play_events"
-    GameId = Column(Integer, ForeignKey(Game.GameId), primary_key=True)
+    GameId = Column(Integer, ForeignKey(Game.GameId))
     AwayTeamId = Column(Integer, ForeignKey(Team.TeamId))
     HomeTeamId = Column(Integer, ForeignKey(Team.TeamId))
     ActionSequence = Column(Integer)
-    EventNumber = Column(Integer)
+    EventNumber = Column(Integer, primary_key=True)
     PeriodNumber = Column(Integer)
     EventTime = Column(Time)
     EventType = Column(Text)
