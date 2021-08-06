@@ -221,19 +221,129 @@ def get_game_ids(session, season, season_type):
     return results
 
 
+def is_start_marker(event):
+    start_markers = ["Period Start", "Early Intermission Start"]
+    if event in start_markers:
+        return True
+    else:
+        return False
+
+
 def is_leaf_node(event):
-    end_markers = ["GAME END","STOPPAGE","PENALTY","GOAL","PERIOD END"]
+    end_markers = ["GAME END", "STOPPAGE", "PENALTY", "GOAL", "PERIOD END"]
     if event in end_markers:
         return True
     else:
         return False
 
+
 def is_home_team(event):
     return event[0].ScoringTeamId == event[0].HomeTeamId
 
 
-def generate_node(orm, session):
-    node = Node()
+def generate_node(parent, event, session):
+    result = None
+    zone = None
+    event_type = None
+    performed_by = None
+    new_node = Node()
+
+    # setting the values of the new node
+    new_node.set_goal_home(parent.get_goal_home())
+    new_node.set_goal_away(parent.get_goal_away())
+    new_node.set_goal_diff(parent.get_goal_diff())
+    new_node.set_no_away_players(parent.get_no_away_players())
+    new_node.set_no_home_players(parent.get_no_home_players())
+    new_node.set_man_diff(parent.get_man_diff())
+
+    if event.EventType == "PERIOD START":
+        result = session.query(EventPeriodStart).filter(
+            event.ExternalEventId == EventPeriodStart.PeriodStartId
+        )
+        event_type = "period_start"
+    elif event.EventType == "FACEOFF":
+        result = session.query(EventFaceoff).filter(
+            event.ExternalEventId == EventFaceoff.FaceoffId
+        )
+        zone = result[0].Zone
+        event_type = "faceoff"
+        performed_by = (
+            "Home" if result[0].FaceoffWinningTeamId == result[0].HomeTeamId else "Away"
+        )
+    elif event.EventType == "MISSED SHOT":
+        result = session.query(EventMissedShot).filter(
+            event.ExternalEventId == EventMissedShot.MissId
+        )
+        zone = result[0].Zone
+        event_type = "missed_shot"
+        performed_by = (
+            "Home" if result[0].MissTeamId == result[0].HomeTeamId else "Away"
+        )
+    elif event.EventType == "SHOT":
+        result = session.query(EventShot).filter(
+            event.ExternalEventId == EventShot.ShotId
+        )
+        zone = result[0].Zone
+        event_type = "shot"
+        performed_by = (
+            "Home" if result[0].ShotByTeamId == result[0].HomeTeamId else "Away"
+        )
+    elif event.EventType == "HIT":
+        result = session.query(EventHit).filter(event.ExternalEventId == EventHit.HitId)
+        zone = result[0].Zone
+        event_type = "hit"
+        performed_by = (
+            "Home" if result[0].HittingTeamId == result[0].HomeTeamId else "Away"
+        )
+    elif event.EventType == "BLOCKED SHOT":
+        result = session.query(EventBlockedShot).filter(
+            event.ExternalEventId == EventBlockedShot.BlockId
+        )
+        zone = result[0].Zone
+        event_type = "blocked_shot"
+        performed_by = (
+            "Home" if result[0].BlockTeamId == result[0].HomeTeamId else "Away"
+        )
+
+    elif event.EventType == "GIVEAWAY":
+        result = session.query(EventGiveaway).filter(
+            event.ExternalEventId == EventGiveaway.GiveawayId
+        )
+        zone = result[0].Zone
+        event_type = "giveaway"
+        performed_by = (
+            "Home" if result[0].GiveawayTeamId == result[0].HomeTeamId else "Away"
+        )
+    elif event.EventType == "PENALTY":
+        result = session.query(EventPenalty).filter(
+            event.ExternalEventId == EventPenalty.PenaltyId
+        )
+        zone = result[0].Zone
+        event_type = "penalty"
+        performed_by = (
+            "Home" if result[0].TeamPenaltyId == result[0].HomeTeamId else "Away"
+        )
+    elif event.EventType == "GOAL":
+        result = session.query(EventGoal).filter(
+            event.ExternalEventId == EventGoal.GoalId
+        )
+        zone = result[0].Zone
+        event_type = "goal"
+        performed_by = (
+            "Home" if result[0].ScoringTeamId == result[0].HomeTeamId else "Away"
+        )
+
+    new_node.set_time_elapsed(event.EventTime.minute)
+    new_node.set_period(event.PeriodNumber)
+    key = None
+    if zone == None and performed_by == None:
+        # creates a key of the form "period_start:10"
+        key = f"{event_type}:{new_node.get_time_elapsed()}"
+    else:
+        # creates a key of the form "faceoff(home,neutral):05"
+        key = f"{event_type}({performed_by},{zone}):{new_node.get_time_elapsed()}"
+
+    return key, new_node
 
 
 def build_tree(session, season, season_type, time_array):
@@ -255,59 +365,58 @@ def build_tree(session, season, season_type, time_array):
     # get game_ids
     games = get_game_ids(session, season, season_type)
 
-
     for game_id in games:
         current_node = root
 
         # for every event in the game
         # expanding my current_node
-        for event in extract_game(season,session,game_id,season_type):
-            if is_leaf_node(event.EventType):
-                new_node = Node()
-                key = None
-                if event.EventType == "GOAL":
-                    goal_event = session.query(EventGoal).filter(EventGoal.GoalId == event.ExternalEventId).all()
+        for event in extract_game(season, session, game_id, season_type):
+            key, node = generate_node(current_node, event, session)
+            if is_start_marker(event.EventType):
+                # return the node if it is already the child of the node otherwise None is return
+                child = current_node.get_child(key)
+                if child is not None:
+                    # increments the transition count
+                    child[0] += 1
+                    child[1].increment_count()
+                else:
+                    current_node.add_child(key, node)
 
-                    # adding shot event before the goal
-                    new_node.set_type("Event Node")
-                    new_node.set_goal_home(current_node.get_goal_home())
-                    new_node.set_goal_away(current_node.get_goal_away())
-                    new_node.set_goal_diff(current_node.get_goal_diff())
-                    new_node.set_no_home_players(current_node.get_no_home_players())
-                    new_node.set_no_away_players(current_node.get_no_away_players())
-                    new_node.set_man_diff(current_node.get_man_diff())
-                    new_node.set_period(current_node.get_period())
-                    # set the zone and the team that scores the goal
-                    new_node.set_zone(goal_event.get_zone())
-                    new_node.set_time_elapsed(goal_event.EventTime)
-                    
-                    # if the home team scores
-                    if is_home_team(goal_event):
-                        key = f"shot(Home,{goal_event.Zone}):"
-                    else:
-                        key = f"shot(away,{goal_event.zone}):"
-                    # key of the form shot(home,offensive) or shot(away,offensive)
-                    key += str(goal_event.EventTime.minute)
+                # if event.EventType == "GOAL":
+                #     goal_event = session.query(EventGoal).filter(EventGoal.GoalId == event.ExternalEventId).all()
 
-                    child_node = current_node.get_childeren().get(key)
-                    # child node is not a child of the current node
-                    if(child_node == None):
-                        new_node.increment_count()
-                        new_node.parent
-                        current_node.add_child(key,new_node)
-                    else:
-                        child_node.increment_count()
+                #     # adding shot event before the goal
+                #     new_node.set_type("Event Node")
+                #     new_node.set_goal_home(current_node.get_goal_home())
+                #     new_node.set_goal_away(current_node.get_goal_away())
+                #     new_node.set_goal_diff(current_node.get_goal_diff())
+                #     new_node.set_no_home_players(current_node.get_no_home_players())
+                #     new_node.set_no_away_players(current_node.get_no_away_players())
+                #     new_node.set_man_diff(current_node.get_man_diff())
+                #     new_node.set_period(current_node.get_period())
+                #     # set the zone and the team that scores the goal
+                #     new_node.set_zone(goal_event.get_zone())
+                #     new_node.set_time_elapsed(goal_event.EventTime)
 
+                #     # if the home team scores
+                #     if is_home_team(goal_event):
+                #         key = f"shot(Home,{goal_event.Zone}):"
+                #     else:
+                #         key = f"shot(away,{goal_event.zone}):"
+                #     # key of the form shot(home,offensive) or shot(away,offensive)
+                #     key += str(goal_event.EventTime.minute)
 
+                #     child_node = current_node.get_childeren().get(key)
+                #     # child node is not a child of the current node
+                #     if(child_node == None):
+                #         new_node.increment_count()
+                #         new_node.parent
+                #         current_node.add_child(key,new_node)
+                #     else:
+                #         child_node.increment_count()
 
-
-
-
-
-                    # create a shot event as a child of the current_node
-                    # before adding a goal event
-
-                    
+                # create a shot event as a child of the current_node
+                # before adding a goal event
 
                 root.increment_count()
 
@@ -326,5 +435,5 @@ if __name__ == "__main__":
     # build_tree(session, season, season_type, time_array=[])
 
     game_ids = get_game_ids(session, season, season_type=season_type)
-    results = extract_game(season,session,game_ids[0][0],season_type)
+    results = extract_game(season, session, game_ids[0][0], season_type)
     print(results[3].EventType)

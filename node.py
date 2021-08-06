@@ -64,15 +64,7 @@ class Node:
         self.count += 1
 
     def add_child(self, key: str, new_node) -> None:
-        node = self.childeren.get(key)
-        if node is not None:
-            # increments the edge count
-            node[0] += 1
-            # increments the node count
-            node[1].increment_count()
-        else:
-            # adds a new node if node never existed
-            self.childeren.update({key: [1, new_node]})
+        self.childeren.update({key: [1, new_node]})
 
     def mark_as_visited(self) -> None:
         self.visited = True
@@ -118,6 +110,10 @@ class Node:
 
     def get_childeren(self) -> dict:
         return self.childeren
+    
+    def get_child(self,key) -> list:
+        return self.childeren.get(key)
 
     def is_visited(self) -> bool:
         return self.visited
+
