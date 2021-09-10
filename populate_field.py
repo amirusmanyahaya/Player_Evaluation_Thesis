@@ -457,5 +457,3 @@ if __name__ == "__main__":
         )
         .all()
     )
-    # generate_node(session,event,goal_home=0,goal_away=0,no_home_ply=6,no_away_ply=6,context=True) #("0:0:1:0",context_node)
-    print(sum(x != None for x in results_2[0]))
