@@ -1,8 +1,9 @@
 class Node:
     number_of_node = 0
+
     def __init__(self) -> None:
         self.type = None
-        self.node_id = 0
+        self.node_id = Node.number_of_node + 1
         self.goal_home = 0
         self.goal_away = 0
         self.goal_diff = 0
@@ -82,7 +83,7 @@ class Node:
         return self.goal_away
 
     def get_goal_diff(self) -> int:
-        return self.goal_diff
+        return self.goal_home - self.goal_away
 
     def get_no_home_players(self) -> int:
         return self.no_home_players
@@ -91,7 +92,7 @@ class Node:
         return self.no_away_players
 
     def get_man_diff(self) -> int:
-        return self.man_diff
+        return self.no_home_players - self.no_away_players
 
     def get_zone(self) -> str:
         return self.zone
@@ -110,10 +111,9 @@ class Node:
 
     def get_childeren(self) -> dict:
         return self.childeren
-    
-    def get_child(self,key) -> list:
+
+    def get_child(self, key) -> list:
         return self.childeren.get(key)
 
     def is_visited(self) -> bool:
         return self.visited
-

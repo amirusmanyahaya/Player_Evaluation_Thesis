@@ -4,6 +4,7 @@ from orm_model import *
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import MetaData
+from sqlalchemy import func
 from tqdm import tqdm
 from node import Node
 
@@ -241,7 +242,17 @@ def is_home_team(event):
     return event[0].ScoringTeamId == event[0].HomeTeamId
 
 
-def generate_node(parent, event, session):
+# def generate_context_key(parent_gd,parent_md,event,):
+#     # generates a context node of the form GD:MD:P:T
+#     return f"{parent_gd}:{parent_md}:{event.PeriodNumber}:{0 if event.EventTime.minute < 10 else''}"
+
+# def generate_non_context_key(parent_gd,parent_md,event):
+#     return f"{}"
+
+
+def generate_node(
+    event, session, home_goal, away_goal, home_players, away_players, context=False
+):
     result = None
     zone = None
     event_type = None
@@ -249,12 +260,10 @@ def generate_node(parent, event, session):
     new_node = Node()
 
     # setting the values of the new node
-    new_node.set_goal_home(parent.get_goal_home())
-    new_node.set_goal_away(parent.get_goal_away())
-    new_node.set_goal_diff(parent.get_goal_diff())
-    new_node.set_no_away_players(parent.get_no_away_players())
-    new_node.set_no_home_players(parent.get_no_home_players())
-    new_node.set_man_diff(parent.get_man_diff())
+    new_node.set_goal_home(home_goal)
+    new_node.set_goal_away(away_goal)
+    new_node.set_no_away_players(away_players)
+    new_node.set_no_home_players(home_players)
 
     if event.EventType == "PERIOD START":
         result = session.query(EventPeriodStart).filter(
@@ -336,12 +345,31 @@ def generate_node(parent, event, session):
     new_node.set_time_elapsed(event.EventTime.minute)
     new_node.set_period(event.PeriodNumber)
     key = None
+
+    if context == True:
+        if event_type == "goal":
+            if performed_by == "home":
+                new_node.set_goal_home(new_node.get_goal_home + 1)
+                new_node.set_goal_away(new_node.get_goal_away - 1)
+            else:
+                new_node.set_goal_home(new_node.get_goal_home - 1)
+                new_node.set_goal_away(new_node.get_goal_away + 1)
+        elif event_type == "penalty":
+            if performed_by == "home":
+                new_node.set_no_away_players(new_node.get_no_away_players() - 1)
+            else:
+                new_node.set_no_home_players(new_node.get_no_home_players() - 1)
+
     if zone == None and performed_by == None:
-        # creates a key of the form "period_start:10"
-        key = f"{event_type}:{new_node.get_time_elapsed()}"
+        if context == True:
+            key = f"{new_node.get_goal_diff()}:{new_node.get_man_diff()}:{event.Period}:{event.EventTime.minute}"
+        else:
+            # creates a key of the form "period_start:0:0:1:0"
+            key = f"{event_type}:{new_node.get_goal_diff()}:{new_node.get_man_diff()}:{event.Period}:{event.EventTime.minute}"
     else:
-        # creates a key of the form "faceoff(home,neutral):05"
-        key = f"{event_type}({performed_by},{zone}):{new_node.get_time_elapsed()}"
+        new_node.set_zone(zone)
+        # creates a key of the form "faceoff(home,neutral):0:0:1:0"
+        key = f"{event_type}({performed_by},{zone}):{new_node.get_goal_diff()}:{new_node.get_man_diff()}:{event.Period}:{event.EventTime.minute}"
 
     return key, new_node
 
@@ -350,13 +378,12 @@ def build_tree(session, season, season_type, time_array):
     # initialize a root node
     root = Node()
     root.set_type("Root Node")
-    root.set_node_id(0)
-    root.set_goal_away(None)
-    root.set_goal_home(None)
-    root.set_goal_diff(None)
-    root.set_no_away_players(None)
-    root.set_no_home_players(None)
-    root.set_man_diff(None)
+    root.set_goal_away(0)
+    root.set_goal_home(0)
+    root.set_goal_diff(0)
+    root.set_no_away_players(0)
+    root.set_no_home_players(0)
+    root.set_man_diff(0)
     root.set_zone(None)
     root.set_period(None)
     root.set_time_elapsed(None)
@@ -371,54 +398,30 @@ def build_tree(session, season, season_type, time_array):
         # for every event in the game
         # expanding my current_node
         for event in extract_game(season, session, game_id, season_type):
-            key, node = generate_node(current_node, event, session)
-            if is_start_marker(event.EventType):
-                # return the node if it is already the child of the node otherwise None is return
-                child = current_node.get_child(key)
-                if child is not None:
-                    # increments the transition count
-                    child[0] += 1
-                    child[1].increment_count()
-                else:
-                    current_node.add_child(key, node)
+            # if event is a start or end marker
+            # generate context key for the event
+            # if current node is not the root node
+            # if key is a child of the root node
+            # if key is not a child of our current node
+            # add the context node to the list of cildren of the current node
+            # else
+            # increment the transiton context node to the current node
+            # else if the key is not a child of the root node
+            # add the context node to the root node
+            # add the context node to the leaf node
+            #  else if the current node is the root node
+            # add the context node to the root node
+            # incrment the occurance of the child node
+            # set current to be equal to the context
+            # generate non context key for the event
+            # if non context key is a child of current key
+            # increment the transiton count for the current node to the non-context node
+            # else if non context key is not a child of current node
+            # add the the non context key to current node
+            # incrment the count of the non context node
+            # set the current node to be the non context node
 
-                # if event.EventType == "GOAL":
-                #     goal_event = session.query(EventGoal).filter(EventGoal.GoalId == event.ExternalEventId).all()
-
-                #     # adding shot event before the goal
-                #     new_node.set_type("Event Node")
-                #     new_node.set_goal_home(current_node.get_goal_home())
-                #     new_node.set_goal_away(current_node.get_goal_away())
-                #     new_node.set_goal_diff(current_node.get_goal_diff())
-                #     new_node.set_no_home_players(current_node.get_no_home_players())
-                #     new_node.set_no_away_players(current_node.get_no_away_players())
-                #     new_node.set_man_diff(current_node.get_man_diff())
-                #     new_node.set_period(current_node.get_period())
-                #     # set the zone and the team that scores the goal
-                #     new_node.set_zone(goal_event.get_zone())
-                #     new_node.set_time_elapsed(goal_event.EventTime)
-
-                #     # if the home team scores
-                #     if is_home_team(goal_event):
-                #         key = f"shot(Home,{goal_event.Zone}):"
-                #     else:
-                #         key = f"shot(away,{goal_event.zone}):"
-                #     # key of the form shot(home,offensive) or shot(away,offensive)
-                #     key += str(goal_event.EventTime.minute)
-
-                #     child_node = current_node.get_childeren().get(key)
-                #     # child node is not a child of the current node
-                #     if(child_node == None):
-                #         new_node.increment_count()
-                #         new_node.parent
-                #         current_node.add_child(key,new_node)
-                #     else:
-                #         child_node.increment_count()
-
-                # create a shot event as a child of the current_node
-                # before adding a goal event
-
-                root.increment_count()
+            pass
 
 
 if __name__ == "__main__":
@@ -436,4 +439,23 @@ if __name__ == "__main__":
 
     game_ids = get_game_ids(session, season, season_type=season_type)
     results = extract_game(season, session, game_ids[0][0], season_type)
-    print(results[3].EventType)
+    results_2 = (
+        session.query(
+            PlayByPlayEvents.AwayPlayer1,
+            PlayByPlayEvents.AwayPlayer2,
+            PlayByPlayEvents.AwayPlayer3,
+            PlayByPlayEvents.AwayPlayer4,
+            PlayByPlayEvents.AwayPlayer5,
+            PlayByPlayEvents.AwayPlayer6,
+            PlayByPlayEvents.AwayPlayer7,
+            PlayByPlayEvents.AwayPlayer8,
+            PlayByPlayEvents.AwayPlayer9,
+        )
+        .filter(
+            PlayByPlayEvents.EventNumber == results[0].EventNumber,
+            PlayByPlayEvents.GameId == results[0].GameId,
+        )
+        .all()
+    )
+    # generate_node(session,event,goal_home=0,goal_away=0,no_home_ply=6,no_away_ply=6,context=True) #("0:0:1:0",context_node)
+    print(sum(x != None for x in results_2[0]))
